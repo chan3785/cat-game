@@ -837,7 +837,6 @@ public class BoardManager : MonoBehaviour
         {
             case GamePlayState.INPUTOK:
                 // 마우스 버튼 누름
-                Debug.Log(PlayState);
                 if (Input.GetMouseButtonDown(0))
                 {
                     _mouseClick = true;
@@ -891,7 +890,6 @@ public class BoardManager : MonoBehaviour
 
             case GamePlayState.AFTERINPUTMOVECHECK:
                 {
-                    Debug.Log(PlayState);
                     if (!CheckBlockMove())
                     {
                         PlayState = GamePlayState.MATCHCHECK;
@@ -901,9 +899,7 @@ public class BoardManager : MonoBehaviour
 
             case GamePlayState.MATCHCHECK:
                 {
-                    Debug.Log(PlayState);
                     CheckMatchBlock();
-                    Debug.Log(isMatched + "," + isUserMoved);
                     if (!isMatched && isUserMoved)
                     {
                         PlayState = GamePlayState.INPUTCANCEL;
@@ -919,11 +915,8 @@ public class BoardManager : MonoBehaviour
 
             case GamePlayState.INPUTCANCEL:
                 {
-                    Debug.Log(PlayState);
                     int column = _ClickedObject.GetComponent<Block>().Column;
                     int row = _ClickedObject.GetComponent<Block>().Row;
-                    Debug.Log(_ClickedObject);
-                    Debug.Log(column + "," + row);
                     OppositeMoveObject(column, row, _dir);
 
                     isUserMoved = false;
@@ -934,7 +927,6 @@ public class BoardManager : MonoBehaviour
 
             case GamePlayState.DROPBLOCK:
                 {
-                    Debug.Log(PlayState);
                     CreateNewBlock();
                     PlayState = GamePlayState.AFTERDROP_MOVECHECK;
                 }
@@ -944,7 +936,6 @@ public class BoardManager : MonoBehaviour
 
             case GamePlayState.AFTERDROP_MOVECHECK:
                 {
-                    Debug.Log(PlayState);
                     if (!CheckBlockMove())
                     {
                         if (PlayState == GamePlayState.AFTERMATCH_MOVECHECK)
