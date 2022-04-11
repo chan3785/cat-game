@@ -67,6 +67,9 @@ public class BoardManager : MonoBehaviour
     private float reverseAngle;                 // 마우스 움직임 정반대 각 저장
 
     private MouseMoveDirection _dir;
+    private MouseMoveDirection rev_dir;
+
+    private bool isUserMoved;
 
     #endregion
 
@@ -82,6 +85,7 @@ public class BoardManager : MonoBehaviour
 
         _BlockWidth = _BlockPrefab.GetComponent<Block>()._Image.sprite.rect.size.x / 100;
         MakeBoard(start_Column, start_Row);         // 게임 보드 생성
+        PlayState = GamePlayState.MATCHCHECK;
     }
 
     private void MakeBoard(int column, int row)
@@ -188,7 +192,7 @@ public class BoardManager : MonoBehaviour
                         _GameBoard[col, row] = null;
 
                         block.Column = block.Column + heightCount;
-                        block.gameObject.name = $"Bloco[{block.Column}, {block.Row}]";
+                        block.gameObject.name = $"Block[{block.Column}, {block.Row}]";
                         _GameBoard[block.Column, block.Row] = block.gameObject;
 
                         block.Move(DIRECTION.DOWN, heightCount);
@@ -253,11 +257,9 @@ public class BoardManager : MonoBehaviour
             {
                 matchList.AddRange(tempMatchList);
                 tempMatchList.Clear();
-                isMatched = true;
             }
             else
             {
-                isMatched = false;
                 tempMatchList.Clear();
             }
         }
@@ -306,12 +308,10 @@ public class BoardManager : MonoBehaviour
             {
                 matchList.AddRange(tempMatchList);
                 tempMatchList.Clear();
-                isMatched = true;
             }
             else
             {
                 tempMatchList.Clear();
-                isMatched = false;
             }
         }
 
@@ -327,8 +327,12 @@ public class BoardManager : MonoBehaviour
                 _GameBoard[block.Column, block.Row] = null;
                 obj.SetActive(false);
             }
-
+            isMatched = true;
             _RemovingBlocks.AddRange(matchList);
+        }
+        else
+        {
+            isMatched = false;
         }
         _RemovedBlocks.AddRange(_RemovingBlocks);
         DropBlocks();
@@ -595,13 +599,19 @@ public class BoardManager : MonoBehaviour
         return Quaternion.FromToRotation(Vector3.up, to - from).eulerAngles.z;
     }
 
-    private MouseMoveDirection calculateDirection()
+    private void calculateDirection()
     {
         float angle = CalculateAngle(_startPos, _endPos);
-        reverseAngle = angle + 180.0f;
+        if (angle >= 180.0f)
+        {
+            reverseAngle = angle - 180.0f;
+        }
+        else
+        {
+            reverseAngle = angle + 180.0f;
+        }
 
-        return DetermineDirection(angle);
-
+        _dir = DetermineDirection(angle);
     }
 
     private MouseMoveDirection DetermineDirection(float angle)
@@ -624,6 +634,8 @@ public class BoardManager : MonoBehaviour
         }
 
         return MouseMoveDirection.MOUSEMOVEDOWN;
+
+
     }
 
     private void MouseMove()
@@ -632,97 +644,190 @@ public class BoardManager : MonoBehaviour
 
         if (diff > _MoveDistance && _ClickedObject != null)
         {
-            _dir = calculateDirection();
+            calculateDirection();
 
             int column = _ClickedObject.GetComponent<Block>().Column;
             int row = _ClickedObject.GetComponent<Block>().Row;
+            MoveObject(column, row, _dir);
 
-            switch (_dir)
-            {
-                case MouseMoveDirection.MOUSEMOVELEFT:
-                    {
-                        if (row > 0)
-                        {
-                            _GameBoard[column, row].GetComponent<Block>().Row = row - 1;
-                            _GameBoard[column, row - 1].GetComponent<Block>().Row = row;
-
-                            _GameBoard[column, row] = _GameBoard[column, row - 1];
-                            _GameBoard[column, row - 1] = _ClickedObject;
-
-                            _GameBoard[column, row].GetComponent<Block>().Move(DIRECTION.RIGHT);
-                            _GameBoard[column, row - 1].GetComponent<Block>().Move(DIRECTION.LEFT);
-
-                            PlayState = GamePlayState.AFTERINPUTMOVECHECK;
-                        }
-                    }
-
-                    break;
-
-                case MouseMoveDirection.MOUSEMOVERIGHT:
-                    {
-                        // 열 값이 0보다 큰 경우에 우측 이동이 가능
-                        if (row < _Row - 1)
-                        {
-                            // 이동할 위치의 행과 열로 위치 값을 갱신
-                            _GameBoard[column, row].GetComponent<Block>().Row = row + 1;
-                            _GameBoard[column, row + 1].GetComponent<Block>().Row = row;
-
-                            // 게임 보드 상의 참조 위치 값도 변경
-                            _GameBoard[column, row] = _GameBoard[column, row + 1];
-                            _GameBoard[column, row + 1] = _ClickedObject;
-
-                            //움직이도록 명량
-                            _GameBoard[column, row].GetComponent<Block>().Move(DIRECTION.LEFT);
-                            _GameBoard[column, row + 1].GetComponent<Block>().Move(DIRECTION.RIGHT);
-
-                            PlayState = GamePlayState.AFTERINPUTMOVECHECK;
-                        }
-                    }
-
-                    break;
-
-                case MouseMoveDirection.MOUSEMOVEUP:
-                    {
-                        if (column > 0)
-                        {
-                            _GameBoard[column, row].GetComponent<Block>().Column = column - 1;
-                            _GameBoard[column - 1, row].GetComponent<Block>().Column = column;
-
-                            _GameBoard[column, row] = _GameBoard[column - 1, row];
-                            _GameBoard[column - 1, row] = _ClickedObject;
-
-                            _GameBoard[column, row].GetComponent<Block>().Move(DIRECTION.DOWN);
-                            _GameBoard[column - 1, row].GetComponent<Block>().Move(DIRECTION.UP);
-
-                            PlayState = GamePlayState.AFTERINPUTMOVECHECK;
-                        }
-                    }
-
-                    break;
-
-                case MouseMoveDirection.MOUSEMOVEDOWN:
-                    {
-                        if (column < _Column - 1)
-                        {
-                            _GameBoard[column, row].GetComponent<Block>().Column = column + 1;
-                            _GameBoard[column + 1, row].GetComponent<Block>().Column = column;
-
-                            _GameBoard[column, row] = _GameBoard[column + 1, row];
-                            _GameBoard[column + 1, row] = _ClickedObject;
-
-                            _GameBoard[column, row].GetComponent<Block>().Move(DIRECTION.UP);
-                            _GameBoard[column + 1, row].GetComponent<Block>().Move(DIRECTION.DOWN);
-
-                            PlayState = GamePlayState.AFTERINPUTMOVECHECK;
-                        }
-                    }
-
-                    break;
-            }
-            _startPos = _endPos = Vector3.zero;
-            _ClickedObject = null;
-            _mouseClick = false;
         }
+    }
+
+    private void MoveObject(int column, int row, MouseMoveDirection direction)
+    {
+        switch (direction)
+        {
+            case MouseMoveDirection.MOUSEMOVELEFT:
+                {
+                    if (row > 0)
+                    {
+                        _GameBoard[column, row].GetComponent<Block>().Row = row - 1;
+                        _GameBoard[column, row - 1].GetComponent<Block>().Row = row;
+
+                        _GameBoard[column, row] = _GameBoard[column, row - 1];
+                        _GameBoard[column, row - 1] = _ClickedObject;
+
+                        _GameBoard[column, row].GetComponent<Block>().Move(DIRECTION.RIGHT);
+                        _GameBoard[column, row - 1].GetComponent<Block>().Move(DIRECTION.LEFT);
+
+                        PlayState = GamePlayState.AFTERINPUTMOVECHECK;
+                    }
+                }
+
+                break;
+
+            case MouseMoveDirection.MOUSEMOVERIGHT:
+                {
+                    // 열 값이 0보다 큰 경우에 우측 이동이 가능
+                    if (row < _Row - 1)
+                    {
+                        // 이동할 위치의 행과 열로 위치 값을 갱신
+                        _GameBoard[column, row].GetComponent<Block>().Row = row + 1;
+                        _GameBoard[column, row + 1].GetComponent<Block>().Row = row;
+
+                        // 게임 보드 상의 참조 위치 값도 변경
+                        _GameBoard[column, row] = _GameBoard[column, row + 1];
+                        _GameBoard[column, row + 1] = _ClickedObject;
+
+                        //움직이도록 명량
+                        _GameBoard[column, row].GetComponent<Block>().Move(DIRECTION.LEFT);
+                        _GameBoard[column, row + 1].GetComponent<Block>().Move(DIRECTION.RIGHT);
+
+                        PlayState = GamePlayState.AFTERINPUTMOVECHECK;
+                    }
+                }
+
+                break;
+
+            case MouseMoveDirection.MOUSEMOVEUP:
+                {
+                    if (column > 0)
+                    {
+                        _GameBoard[column, row].GetComponent<Block>().Column = column - 1;
+                        _GameBoard[column - 1, row].GetComponent<Block>().Column = column;
+
+                        _GameBoard[column, row] = _GameBoard[column - 1, row];
+                        _GameBoard[column - 1, row] = _ClickedObject;
+
+                        _GameBoard[column, row].GetComponent<Block>().Move(DIRECTION.DOWN);
+                        _GameBoard[column - 1, row].GetComponent<Block>().Move(DIRECTION.UP);
+
+                        PlayState = GamePlayState.AFTERINPUTMOVECHECK;
+                    }
+                }
+
+                break;
+
+            case MouseMoveDirection.MOUSEMOVEDOWN:
+                {
+                    if (column < _Column - 1)
+                    {
+                        _GameBoard[column, row].GetComponent<Block>().Column = column + 1;
+                        _GameBoard[column + 1, row].GetComponent<Block>().Column = column;
+
+                        _GameBoard[column, row] = _GameBoard[column + 1, row];
+                        _GameBoard[column + 1, row] = _ClickedObject;
+
+                        _GameBoard[column, row].GetComponent<Block>().Move(DIRECTION.UP);
+                        _GameBoard[column + 1, row].GetComponent<Block>().Move(DIRECTION.DOWN);
+
+                        PlayState = GamePlayState.AFTERINPUTMOVECHECK;
+                    }
+                }
+
+                break;
+        }
+        _mouseClick = false;
+    }
+
+    private void OppositeMoveObject(int column, int row, MouseMoveDirection direction)
+    {
+        switch (direction)
+        {
+            case MouseMoveDirection.MOUSEMOVELEFT:
+                {
+                    if (row < _Row - 1)
+                    {
+                        // 이동할 위치의 행과 열로 위치 값을 갱신
+                        _GameBoard[column, row].GetComponent<Block>().Row = row + 1;
+                        _GameBoard[column, row + 1].GetComponent<Block>().Row = row;
+
+                        // 게임 보드 상의 참조 위치 값도 변경
+                        _GameBoard[column, row] = _GameBoard[column, row + 1];
+                        _GameBoard[column, row + 1] = _ClickedObject;
+
+                        //움직이도록 명량
+                        _GameBoard[column, row].GetComponent<Block>().Move(DIRECTION.LEFT);
+                        _GameBoard[column, row + 1].GetComponent<Block>().Move(DIRECTION.RIGHT);
+
+                        PlayState = GamePlayState.AFTERINPUTMOVECHECK;
+                    }
+
+                }
+
+                break;
+
+            case MouseMoveDirection.MOUSEMOVERIGHT:
+                {
+                    // 열 값이 0보다 큰 경우에 우측 이동이 가능
+                    if (row > 0)
+                    {
+                        _GameBoard[column, row].GetComponent<Block>().Row = row - 1;
+                        _GameBoard[column, row - 1].GetComponent<Block>().Row = row;
+
+                        _GameBoard[column, row] = _GameBoard[column, row - 1];
+                        _GameBoard[column, row - 1] = _ClickedObject;
+
+                        _GameBoard[column, row].GetComponent<Block>().Move(DIRECTION.RIGHT);
+                        _GameBoard[column, row - 1].GetComponent<Block>().Move(DIRECTION.LEFT);
+
+                        PlayState = GamePlayState.AFTERINPUTMOVECHECK;
+                    }
+                }
+
+                break;
+
+            case MouseMoveDirection.MOUSEMOVEUP:
+                {
+                    if (column < _Column - 1)
+                    {
+                        _GameBoard[column, row].GetComponent<Block>().Column = column + 1;
+                        _GameBoard[column + 1, row].GetComponent<Block>().Column = column;
+
+                        _GameBoard[column, row] = _GameBoard[column + 1, row];
+                        _GameBoard[column + 1, row] = _ClickedObject;
+
+                        _GameBoard[column, row].GetComponent<Block>().Move(DIRECTION.UP);
+                        _GameBoard[column + 1, row].GetComponent<Block>().Move(DIRECTION.DOWN);
+
+                        PlayState = GamePlayState.AFTERINPUTMOVECHECK;
+                    }
+                }
+
+                break;
+
+            case MouseMoveDirection.MOUSEMOVEDOWN:
+                {
+                    if (column > 0)
+                    {
+                        _GameBoard[column, row].GetComponent<Block>().Column = column - 1;
+                        _GameBoard[column - 1, row].GetComponent<Block>().Column = column;
+
+                        _GameBoard[column, row] = _GameBoard[column - 1, row];
+                        _GameBoard[column - 1, row] = _ClickedObject;
+
+                        _GameBoard[column, row].GetComponent<Block>().Move(DIRECTION.DOWN);
+                        _GameBoard[column - 1, row].GetComponent<Block>().Move(DIRECTION.UP);
+
+                        PlayState = GamePlayState.AFTERINPUTMOVECHECK;
+                    }
+                }
+
+                break;
+        }
+        _startPos = _endPos = Vector3.zero;
+        _ClickedObject = null;
+        _mouseClick = false;
     }
 
     // Update is called once per frame
@@ -732,6 +837,7 @@ public class BoardManager : MonoBehaviour
         {
             case GamePlayState.INPUTOK:
                 // 마우스 버튼 누름
+                Debug.Log(PlayState);
                 if (Input.GetMouseButtonDown(0))
                 {
                     _mouseClick = true;
@@ -769,7 +875,6 @@ public class BoardManager : MonoBehaviour
 
                     _startPos = Camera.main.ScreenToWorldPoint(Input.mousePosition);
                     _endPos = Camera.main.ScreenToWorldPoint(Input.mousePosition);
-                    _ClickedObject = null;
                 }
 
                 // 마우스클릭된 상태에서 마우스 커서 움직임(mousemove)
@@ -780,14 +885,15 @@ public class BoardManager : MonoBehaviour
                     _endPos.z = 0.0f;
 
                     MouseMove();
+                    isUserMoved = true;
                 }
                 break;
 
             case GamePlayState.AFTERINPUTMOVECHECK:
                 {
+                    Debug.Log(PlayState);
                     if (!CheckBlockMove())
                     {
-                        //PlayState = GamePlayState.INPUTOK;
                         PlayState = GamePlayState.MATCHCHECK;
                     }
                 }
@@ -795,22 +901,32 @@ public class BoardManager : MonoBehaviour
 
             case GamePlayState.MATCHCHECK:
                 {
+                    Debug.Log(PlayState);
                     CheckMatchBlock();
-                    if (isMatched)
-                    {
-                        PlayState = GamePlayState.AFTERMATCH_MOVECHECK;
-                    }
-                    else
+                    Debug.Log(isMatched + "," + isUserMoved);
+                    if (!isMatched && isUserMoved)
                     {
                         PlayState = GamePlayState.INPUTCANCEL;
                     }
-
+                    else
+                    {
+                        isUserMoved = false;
+                        PlayState = GamePlayState.AFTERMATCH_MOVECHECK;
+                    }
                 }
 
                 break;
 
             case GamePlayState.INPUTCANCEL:
                 {
+                    Debug.Log(PlayState);
+                    int column = _ClickedObject.GetComponent<Block>().Column;
+                    int row = _ClickedObject.GetComponent<Block>().Row;
+                    Debug.Log(_ClickedObject);
+                    Debug.Log(column + "," + row);
+                    OppositeMoveObject(column, row, _dir);
+
+                    isUserMoved = false;
                     PlayState = GamePlayState.AFTERMATCH_MOVECHECK;
                 }
 
@@ -818,6 +934,7 @@ public class BoardManager : MonoBehaviour
 
             case GamePlayState.DROPBLOCK:
                 {
+                    Debug.Log(PlayState);
                     CreateNewBlock();
                     PlayState = GamePlayState.AFTERDROP_MOVECHECK;
                 }
@@ -827,6 +944,7 @@ public class BoardManager : MonoBehaviour
 
             case GamePlayState.AFTERDROP_MOVECHECK:
                 {
+                    Debug.Log(PlayState);
                     if (!CheckBlockMove())
                     {
                         if (PlayState == GamePlayState.AFTERMATCH_MOVECHECK)
@@ -835,12 +953,13 @@ public class BoardManager : MonoBehaviour
                             {
                                 if (CheckAfterMoveMatchBlock())
                                 {
+                                    _ClickedObject = null;
                                     PlayState = GamePlayState.INPUTOK;
                                 }
                                 else
                                 {
-                                    Application.Quit();
-                                    UnityEditor.EditorApplication.isPlaying = false;
+                                    //Application.Quit();
+                                    //UnityEditor.EditorApplication.isPlaying = false;
                                     Debug.Log("Game Over");
                                 }
                             }
